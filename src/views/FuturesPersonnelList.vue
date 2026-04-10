@@ -20,6 +20,46 @@
           <el-option label="其他" value="2" />
         </el-select>
       </el-form-item>
+      <el-form-item label="资格">
+        <el-select v-model="filters.qualification" placeholder="请选择" clearable style="width: 120px;">
+          <el-option label="开启" value="开启" />
+          <el-option label="关闭" value="关闭" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="省份">
+        <el-select v-model="filters.province" placeholder="请选择" clearable style="width: 120px;" @change="onProvinceChange">
+          <el-option 
+            v-for="prov in provinceCityList" 
+            :key="prov.label" 
+            :label="prov.label" 
+            :value="prov.label" 
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="城市">
+        <el-select v-model="filters.city" placeholder="请选择" clearable style="width: 120px;" :disabled="!filters.province">
+          <el-option 
+            v-for="city in cityOptions" 
+            :key="city.value" 
+            :label="city.label" 
+            :value="city.value" 
+          />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="所属公司">
+        <el-select v-model="filters.company" placeholder="请选择" clearable style="width: 120px;">
+          <el-option label="A" value="A" />
+          <el-option label="B" value="B" />
+          <el-option label="C" value="C" />
+        </el-select>
+      </el-form-item>
+      <el-form-item label="所属辖区监管局">
+        <el-select v-model="filters.supervisionDept" placeholder="请选择" clearable style="width: 120px;">
+          <el-option label="A" value="A" />
+          <el-option label="B" value="B" />
+          <el-option label="C" value="C" />
+        </el-select>
+      </el-form-item>
       <el-form-item label="关键词">
         <el-input v-model="filters.keyword" placeholder="OA流程单号/人员姓名/人员编号/证件号" clearable style="width: 260px;" />
       </el-form-item>
@@ -90,7 +130,12 @@ export default {
         status: i % 3 === 0 ? 0 : 1,
         netAccess: i % 2 === 0 ? '开' : '关',
         endDate: `2026-03-${String((i % 28) + 1).padStart(2, '0')}`,
-        remark: i % 2 === 0 ? '申请说明示例内容' : '测试说明内容'
+        remark: i % 2 === 0 ? '申请说明示例内容' : '测试说明内容',
+        qualification: i % 2 === 0 ? '开启' : '关闭',
+        province: ['北京', '上海', '广州', '深圳'][(i - 1) % 4],
+        city: ['北京市', '上海市', '广州市', '深圳市', '朝阳区', '黄浦区', '天河区', '南山区'][(i - 1) % 8],
+        company: ['A', 'B', 'C'][(i - 1) % 3],
+        supervisionDept: ['A', 'B', 'C'][(i - 1) % 3]
       })
     }
 
@@ -102,11 +147,57 @@ export default {
       filters: {
         dateRange: [],
         ibCategory: '',
+        qualification: '',
+        province: '',
+        city: '',
+        company: '',
+        supervisionDept: '',
         keyword: ''
       },
       allData: sample,
       currentPage: 1,
       pageSize: 10,
+      cityOptions: [], // 城市选项
+      // 定义省份城市数据
+      provinceCityList: [
+        {
+          label: '北京',
+          cityList: [
+            { label: '北京市', value: '北京市' },
+            { label: '朝阳区', value: '朝阳区' },
+            { label: '海淀区', value: '海淀区' },
+            { label: '东城区', value: '东城区' }
+          ]
+        },
+        {
+          label: '上海',
+          cityList: [
+            { label: '上海市', value: '上海市' },
+            { label: '黄浦区', value: '黄浦区' },
+            { label: '静安区', value: '静安区' },
+            { label: '徐汇区', value: '徐汇区' }
+          ]
+        },
+        {
+          label: '广州',
+          cityList: [
+            { label: '广州市', value: '广州市' },
+            { label: '天河区', value: '天河区' },
+            { label: '越秀区', value: '越秀区' },
+            { label: '黄埔区', value: '黄埔区' }
+          ]
+        },
+        {
+          label: '深圳',
+          cityList: [
+            { label: '深圳市', value: '深圳市' },
+            { label: '南山区', value: '南山区' },
+            { label: '福田区', value: '福田区' },
+            { label: '宝安区', value: '宝安区' }
+          ]
+        }
+      ],
+      provincesCitiesMap: {}, // 将在下方初始化
       columnList: [
         { prop: 'processType', label: '流程类型', width: 130 },
         { prop: 'oaNo', label: 'OA流程单号', width: 160 },
@@ -126,9 +217,21 @@ export default {
         { prop: 'status', label: '人员状态', width: 100 },
         { prop: 'netAccess', label: '网开权限', width: 100 },
         { prop: 'endDate', label: '流程结束日期', width: 130 },
-        { prop: 'remark', label: '申请说明', width: 220 }
+        { prop: 'remark', label: '申请说明', width: 220 },
+        { prop: 'qualification', label: '资格', width: 100 },
+        { prop: 'province', label: '省份', width: 100 },
+        { prop: 'city', label: '城市', width: 100 },
+        { prop: 'company', label: '所属公司', width: 120 },
+        { prop: 'supervisionDept', label: '所属辖区监管局', width: 150 }
       ]
     }
+  },
+  created() {
+    // 从 provinceCityList 生成 provincesCitiesMap
+    this.provincesCitiesMap = {};
+    this.provinceCityList.forEach(province => {
+      this.provincesCitiesMap[province.label] = province.cityList;
+    });
   },
   computed: {
     filteredData() {
@@ -140,10 +243,25 @@ export default {
       if (this.filters.ibCategory) {
         data = data.filter(item => item.personnelCategory === this.filters.ibCategory)
       }
+      if (this.filters.qualification) {
+        data = data.filter(item => item.qualification === this.filters.qualification)
+      }
+      if (this.filters.province) {
+        data = data.filter(item => item.province === this.filters.province)
+      }
+      if (this.filters.city) {
+        data = data.filter(item => item.city === this.filters.city)
+      }
+      if (this.filters.company) {
+        data = data.filter(item => item.company === this.filters.company)
+      }
+      if (this.filters.supervisionDept) {
+        data = data.filter(item => item.supervisionDept === this.filters.supervisionDept)
+      }
       if (this.filters.keyword) {
         const keyword = this.filters.keyword.trim().toLowerCase()
         data = data.filter(item => {
-          return [item.oaNo, item.name, item.staffNo, item.idNo, item.department, item.processType]
+          return [item.oaNo, item.name, item.staffNo, item.idNo, item.department, item.processType, item.qualification, item.province, item.city, item.company, item.supervisionDept]
             .join(' ')
             .toLowerCase()
             .includes(keyword)
@@ -164,12 +282,26 @@ export default {
         return item
       })
     },
+    onProvinceChange() {
+      // 当省份改变时，更新城市选项
+      this.filters.city = '';
+      if (this.filters.province && this.provincesCitiesMap[this.filters.province]) {
+        this.cityOptions = this.provincesCitiesMap[this.filters.province];
+      } else {
+        this.cityOptions = [];
+      }
+    },
     onSearch() {
       this.currentPage = 1
     },
     onReset() {
       this.filters.dateRange = []
       this.filters.ibCategory = ''
+      this.filters.qualification = ''
+      this.filters.province = ''
+      this.filters.city = ''
+      this.filters.company = ''
+      this.filters.supervisionDept = ''
       this.filters.keyword = ''
       this.currentPage = 1
     },

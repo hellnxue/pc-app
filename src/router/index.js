@@ -20,6 +20,11 @@ const routes = [
     component: () => import('../views/LoginCursor.vue')
   },
   {
+    path: '/info-add',
+    name: 'InfoAdd',
+    component: () => import('../views/InfoAdd.vue')
+  },
+  {
     path: '/dashboard',
     name: 'Dashboard',
     component: () => import('../views/Dashboard.vue')
