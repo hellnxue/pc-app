@@ -149,7 +149,16 @@ export default {
         managerMobile: '',       // 小卖部负责人手机
         managerEmail: '',        // 小卖部负责人邮箱
         businessManager: '',     // 小卖部业务负责人
-        businessManagerPhone: '' // 小卖部业务负责人电话
+        businessManagerPhone: '', // 小卖部业务负责人电话
+        khPosition: '',         // 岗位（kh）
+        fixedPhone1: '',        // 固定电话1
+        mobilePhone1: '',       // 手机号码1
+        email1: '',             // 邮箱1
+        operatorNumber: '',     // 操作员号
+        fkPosition: '',         // 岗位（fk）
+        fixedPhone2: '',        // 固定电话2
+        mobilePhone2: '',       // 手机号码2
+        email2: ''              // 邮箱2
       },
       provinceCityList: [
         {
@@ -282,6 +291,24 @@ export default {
         ],
         staffCount: [
           { validator: validateNumber, trigger: 'blur' }
+        ],
+        fixedPhone1: [
+          { validator: validatePhone, trigger: 'blur' }
+        ],
+        mobilePhone1: [
+          { validator: validateMobile, trigger: 'blur' }
+        ],
+        email1: [
+          { validator: validateEmail, trigger: 'blur' }
+        ],
+        fixedPhone2: [
+          { validator: validatePhone, trigger: 'blur' }
+        ],
+        mobilePhone2: [
+          { validator: validateMobile, trigger: 'blur' }
+        ],
+        email2: [
+          { validator: validateEmail, trigger: 'blur' }
         ]
       }
     }
@@ -416,6 +443,60 @@ export default {
           prop: 'businessManagerPhone',
           type: 'input',
           placeholder: '请输入小卖部业务负责人电话'
+        },
+        {
+          label: '岗位（kh）',
+          prop: 'khPosition',
+          type: 'input',
+          placeholder: '请输入岗位（kh）'
+        },
+        {
+          label: '固定电话',
+          prop: 'fixedPhone1',
+          type: 'input',
+          placeholder: '请输入固定电话'
+        },
+        {
+          label: '手机号码',
+          prop: 'mobilePhone1',
+          type: 'input',
+          placeholder: '请输入手机号码'
+        },
+        {
+          label: '邮箱1',
+          prop: 'email1',
+          type: 'input',
+          placeholder: '请输入邮箱1'
+        },
+        {
+          label: '操作员号',
+          prop: 'operatorNumber',
+          type: 'input',
+          placeholder: '请输入操作员号'
+        },
+        {
+          label: '岗位（fk）',
+          prop: 'fkPosition',
+          type: 'input',
+          placeholder: '请输入岗位（fk）'
+        },
+        {
+          label: '固定电话',
+          prop: 'fixedPhone2',
+          type: 'input',
+          placeholder: '请输入固定电话'
+        },
+        {
+          label: '手机号码',
+          prop: 'mobilePhone2',
+          type: 'input',
+          placeholder: '请输入手机号码'
+        },
+        {
+          label: '邮箱2',
+          prop: 'email2',
+          type: 'input',
+          placeholder: '请输入邮箱2'
         }
       ];
     },
