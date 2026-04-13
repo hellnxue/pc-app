@@ -8,122 +8,43 @@
       label-position="left"
       class="info-add-form"
     >
-      <el-row :gutter="20">
-        <el-col :span="8">
-          <el-form-item label="小卖部部代码" prop="departmentCode">
-            <el-input 
-              v-model="formData.departmentCode" 
-              placeholder="小卖部柜台代码，允许为空"
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="小卖部组织编码" prop="orgCode">
-            <el-input 
-              v-model="formData.orgCode" 
-              placeholder="请输入小卖部组织编码"
-              @blur="checkDuplicateOrgCode"
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="小卖部简称" prop="shortName">
-            <el-input 
-              v-model="formData.shortName" 
-              placeholder="请输入小卖部简称"
-            />
-          </el-form-item>
-        </el-col>
-      </el-row>
-      
-      <el-row :gutter="20">
-        <el-col :span="8">
-          <el-form-item label="小卖部全称" prop="fullName">
-            <el-input 
-              v-model="formData.fullName" 
-              placeholder="请输入小卖部全称"
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="统一社会信用代码" prop="creditCode">
-            <el-input 
-              v-model="formData.creditCode" 
-              placeholder="请输入统一社会信用代码"
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="小卖部监管局" prop="supervisionDepartment">
-            <el-select 
-              v-model="formData.supervisionDepartment" 
-              placeholder="请选择小卖部监管局"
-              style="width: 100%"
-            >
-              <el-option label="监管局A" value="监管局A"></el-option>
-              <el-option label="监管局B" value="监管局B"></el-option>
-              <el-option label="监管局C" value="监管局C"></el-option>
-              <el-option label="监管局D" value="监管局D"></el-option>
-            </el-select>
-          </el-form-item>
-        </el-col>
-      </el-row>
-      
-      <el-row :gutter="20">
-        <el-col :span="8">
-          <el-form-item label="省份" prop="province">
-            <el-select 
-              v-model="formData.province" 
-              placeholder="请选择省份"
-              style="width: 100%"
-              @change="onProvinceChange"
-            >
-              <el-option 
-                v-for="prov in provinceCityList" 
-                :key="prov.label" 
-                :label="prov.label" 
-                :value="prov.label" 
+      <!-- 动态生成前两行表单项 -->
+    
+        <el-row  v-for="(row, rowIndex) in formRows" :gutter="20" :key="rowIndex">
+          <el-col :span="8" v-for="(item, index) in row" :key="index">
+            <el-form-item :label="item.label" :prop="item.prop">
+              <!-- 输入框 -->
+              <el-input 
+                v-if="item.type === 'input'"
+                v-model="formData[item.prop]" 
+                :placeholder="item.placeholder || `请输入${item.label}`"
+                @blur="item.prop === 'orgCode' ? checkDuplicateOrgCode : null"
               />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="城市" prop="city">
-            <el-select 
-              v-model="formData.city" 
-              placeholder="请选择城市"
-              style="width: 100%"
-              :disabled="!formData.province"
-              @change="onCityChange"
-            >
-              <el-option 
-                v-for="city in cityOptions" 
-                :key="city.value" 
-                :label="city.label" 
-                :value="city.value" 
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-        <el-col :span="8">
-          <el-form-item label="区县" prop="district">
-            <el-select 
-              v-model="formData.district" 
-              placeholder="请选择区县"
-              style="width: 100%"
-              :disabled="!formData.city"
-            >
-              <el-option 
-                v-for="area in areaOptions" 
-                :key="area.value" 
-                :label="area.label" 
-                :value="area.value" 
-              />
-            </el-select>
-          </el-form-item>
-        </el-col>
-      </el-row>
+              
+                
+              <!-- 选择框  -->
+              <el-select 
+                v-else-if="item.type === 'select'"
+                v-model="formData[item.prop]" 
+                :placeholder="item.placeholder || `请选择${item.label}`"
+                style="width: 100%"
+                @change="item.onChange ?handleChange(item.onChange) : null"
+                :disabled="item.disabledCondition ? !formData[item.disabledCondition] : false"
+              >
+                <el-option 
+                  v-for="option in item.options" 
+                  :key="option.value" 
+                  :label="option.label" 
+                  :value="option.value" 
+                />
+                
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
       
+      
+      <!-- 地址和邮编单独处理，因为它们跨两列 -->
       <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="具体地址" prop="address">
@@ -303,7 +224,101 @@ export default {
       }
     }
   },
+  computed: {
+    // 动态生成表单配置项
+    formItemList() {
+      return [
+        {
+          label: '小卖部部代码',
+          prop: 'departmentCode',
+          type: 'input',
+          placeholder: '小卖部柜台代码，允许为空'
+        },
+        {
+          label: '小卖部组织编码',
+          prop: 'orgCode',
+          type: 'input',
+          placeholder: '请输入小卖部组织编码',
+          onBlur: true
+        },
+        {
+          label: '小卖部简称',
+          prop: 'shortName',
+          type: 'input',
+          placeholder: '请输入小卖部简称'
+        },
+        {
+          label: '小卖部全称',
+          prop: 'fullName',
+          type: 'input',
+          placeholder: '请输入小卖部全称'
+        },
+        {
+          label: '统一社会信用代码',
+          prop: 'creditCode',
+          type: 'input',
+          placeholder: '请输入统一社会信用代码'
+        },
+        {
+          label: '小卖部监管局',
+          prop: 'supervisionDepartment',
+          type: 'select',
+          placeholder: '请选择小卖部监管局',
+          staticOptions: true,
+          options: [
+            { label: '监管局A', value: '监管局A' },
+            { label: '监管局B', value: '监管局B' },
+            { label: '监管局C', value: '监管局C' },
+            { label: '监管局D', value: '监管局D' }
+          ]
+        },
+        {
+          label: '省份',
+          prop: 'province',
+          type: 'select',
+          placeholder: '请选择省份',
+          options: this.provinceCityList.map(province => ({
+            label: province.label,
+            value: province.label
+          })),
+          onChange:'onProvinceChange'
+        },
+        {
+          label: '城市',
+          prop: 'city',
+          type: 'select',
+          placeholder: '请选择城市',
+          disabledCondition: 'province',
+          options: this.cityOptions,
+          onChange:'onCityChange'
+        },
+        {
+          label: '区县',
+          prop: 'district',
+          type: 'select',
+          placeholder: '请选择区县',
+          disabledCondition: 'city',
+          options: this.areaOptions
+        }
+      ];
+    },
+    // 生成行结构，每行最多3个项目
+    formRows() {
+      const rows = [];
+      const items = this.formItemList;
+      for (let i = 0; i < items.length; i += 3) {
+        rows.push(items.slice(i, i + 3));
+      }
+      return rows;
+    }
+  },
   methods: {
+    handleChange(onChange) {
+       
+      if (typeof onChange === 'string' && this[onChange]) {
+        this[onChange]();
+      }
+    },
     submitForm() {
       this.$refs.infoAddForm.validate((valid) => {
         if (valid) {
@@ -335,39 +350,57 @@ export default {
       this.$refs.infoAddForm.validateField('orgCode');
     },
     onProvinceChange() {
+        
       // 当省份改变时，清空城市和区县选项
       this.formData.city = '';
       this.formData.district = '';
       this.cityOptions = [];
       this.areaOptions = [];
-      
-      if (this.formData.province) {
+     
         // 查找选中省份的数据
         const selectedProvince = this.provinceCityList.find(p => p.label === this.formData.province);
         if (selectedProvince) {
-          this.cityOptions = selectedProvince.cityList;
+          this.cityOptions = selectedProvince.cityList.map(city => ({
+            label: city.label,
+            value: city.value
+          }));
         }
-      }
-    },
-    onCityChange() {
+
+       console.log('cityOptions===================',this.cityOptions);
+
+      },
+      onCityChange() {
+
       // 当城市改变时，清空区县选项
       this.formData.district = '';
       this.areaOptions = [];
+       
       
       if (this.formData.city) {
+
         // 查找选中省份的数据
         const selectedProvince = this.provinceCityList.find(p => p.label === this.formData.province);
         if (selectedProvince) {
           // 查找选中城市的区县数据
           const selectedCity = selectedProvince.cityList.find(c => c.value === this.formData.city);
           if (selectedCity && selectedCity.areaList) {
-            this.areaOptions = selectedCity.areaList;
+
+
+            this.areaOptions = selectedCity.areaList.map(area => ({
+              label: area.label,
+              value: area.value
+            }));
           }
         }
       }
     }
+
+    },
+
+     
+   
   }
-}
+ 
 </script>
 
 <style scoped>
