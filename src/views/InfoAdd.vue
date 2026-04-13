@@ -28,7 +28,7 @@
                 v-model="formData[item.prop]" 
                 :placeholder="item.placeholder || `请选择${item.label}`"
                 style="width: 100%"
-                @change="item.onChange ?handleChange(item.onChange) : null"
+                @change="item.onChange ? handleChange(item.onChange) : null"
                 :disabled="item.disabledCondition ? !formData[item.disabledCondition] : false"
               >
                 <el-option 
@@ -45,7 +45,7 @@
       
       
       <!-- 地址和邮编单独处理，因为它们跨两列 -->
-      <el-row :gutter="20">
+      <!-- <el-row :gutter="20">
         <el-col :span="12">
           <el-form-item label="具体地址" prop="address">
             <el-input 
@@ -62,7 +62,7 @@
             />
           </el-form-item>
         </el-col>
-      </el-row>
+      </el-row> -->
       
       <div class="form-buttons">
         <el-button type="primary" @click="submitForm">提交</el-button>
@@ -91,6 +91,45 @@ export default {
       }
     };
     
+    // 验证固定电话格式
+    const validatePhone = (rule, value, callback) => {
+      const phoneRegex = /^(\d{3,4}-?)?\d{7,8}$/;
+      if (value && !phoneRegex.test(value)) {
+        callback(new Error('请输入正确的固定电话格式，如：010-12345678'));
+      } else {
+        callback();
+      }
+    };
+    
+    // 验证手机号格式
+    const validateMobile = (rule, value, callback) => {
+      const mobileRegex = /^1[3-9]\d{9}$/;
+      if (value && !mobileRegex.test(value)) {
+        callback(new Error('请输入正确的手机号格式'));
+      } else {
+        callback();
+      }
+    };
+    
+    // 验证邮箱格式
+    const validateEmail = (rule, value, callback) => {
+      const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+      if (value && !emailRegex.test(value)) {
+        callback(new Error('请输入正确的邮箱格式'));
+      } else {
+        callback();
+      }
+    };
+    
+    // 验证人数为数字或空值
+    const validateNumber = (rule, value, callback) => {
+      if (value && isNaN(Number(value))) {
+        callback(new Error('请输入有效的数字'));
+      } else {
+        callback();
+      }
+    };
+    
     return {
       formData: {
         departmentCode: '',
@@ -103,7 +142,14 @@ export default {
         city: '',
         district: '',
         address: '',
-        postalCode: ''
+        postalCode: '',
+        staffCount: '',           // 人员数量
+        manager: '',             // 小卖部部负责人
+        managerPhone: '',        // 小卖部负责人固定电话
+        managerMobile: '',       // 小卖部负责人手机
+        managerEmail: '',        // 小卖部负责人邮箱
+        businessManager: '',     // 小卖部业务负责人
+        businessManagerPhone: '' // 小卖部业务负责人电话
       },
       provinceCityList: [
         {
@@ -220,6 +266,22 @@ export default {
         postalCode: [
           { required: true, message: '请输入邮编', trigger: 'blur' },
           { pattern: /^\d{6}$/, message: '邮编格式不正确，应为6位数字', trigger: 'blur' }
+        ],
+        // 新增字段的校验规则
+        managerPhone: [
+          { validator: validatePhone, trigger: 'blur' }
+        ],
+        managerMobile: [
+          { validator: validateMobile, trigger: 'blur' }
+        ],
+        managerEmail: [
+          { validator: validateEmail, trigger: 'blur' }
+        ],
+        businessManagerPhone: [
+          { validator: validateMobile, trigger: 'blur' }
+        ],
+        staffCount: [
+          { validator: validateNumber, trigger: 'blur' }
         ]
       }
     }
@@ -281,7 +343,7 @@ export default {
             label: province.label,
             value: province.label
           })),
-          onChange:'onProvinceChange'
+          onChange: 'onProvinceChange'
         },
         {
           label: '城市',
@@ -290,7 +352,7 @@ export default {
           placeholder: '请选择城市',
           disabledCondition: 'province',
           options: this.cityOptions,
-          onChange:'onCityChange'
+          onChange: 'onCityChange'
         },
         {
           label: '区县',
@@ -299,6 +361,61 @@ export default {
           placeholder: '请选择区县',
           disabledCondition: 'city',
           options: this.areaOptions
+        },
+        {
+          label: '具体地址',
+          prop: 'address',
+          type: 'input',
+          placeholder: '请输入具体地址'
+        },
+        {
+          label: '邮编',
+          prop: 'postalCode',
+          type: 'input',
+          placeholder: '请输入邮编'
+        },
+        // 新增字段
+        {
+          label: '人员数量',
+          prop: 'staffCount',
+          type: 'input',
+          placeholder: '请输入人员数量'
+        },
+        {
+          label: '小卖部部负责人',
+          prop: 'manager',
+          type: 'input',
+          placeholder: '请输入小卖部部负责人'
+        },
+        {
+          label: '小卖部负责人固定电话',
+          prop: 'managerPhone',
+          type: 'input',
+          placeholder: '请输入小卖部负责人固定电话'
+        },
+        {
+          label: '小卖部负责人手机',
+          prop: 'managerMobile',
+          type: 'input',
+          placeholder: '请输入小卖部负责人手机'
+        },
+        {
+          label: '小卖部负责人邮箱',
+          prop: 'managerEmail',
+          type: 'input',
+          placeholder: '请输入小卖部负责人邮箱'
+        },
+        {
+          label: '小卖部业务负责人',
+          prop: 'businessManager',
+          type: 'input',
+          placeholder: '请输入小卖部业务负责人'
+        },
+        {
+          label: '小卖部业务负责人电话',
+          prop: 'businessManagerPhone',
+          type: 'input',
+          placeholder: '请输入小卖部业务负责人电话'
         }
       ];
     },
