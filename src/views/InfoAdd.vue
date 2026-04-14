@@ -9,10 +9,14 @@
       class="info-add-form"
     >
       <!-- 动态生成前两行表单项 -->
-    
-        <el-row  v-for="(row, rowIndex) in formRows" :gutter="20" :key="rowIndex">
+        <el-row v-for="(row, rowIndex) in formRows" :key="rowIndex" :gutter="20">
           <el-col :span="8" v-for="(item, index) in row" :key="index">
-            <el-form-item :label="item.label" :prop="item.prop">
+            <!-- 条件显示字段 -->
+            <el-form-item 
+              v-if="!item.conditionalDisplay || formData[item.conditionalDisplay] === item.conditionValue"
+              :label="item.label" 
+              :prop="item.prop"
+            >
               <!-- 输入框 -->
               <el-input 
                 v-if="item.type === 'input'"
@@ -21,8 +25,26 @@
                 @blur="item.prop === 'orgCode' ? checkDuplicateOrgCode : null"
               />
               
-                
-              <!-- 选择框  -->
+              <!-- 数字输入框 -->
+              <el-input 
+                v-else-if="item.type === 'number'"
+                v-model.number="formData[item.prop]" 
+                type="number"
+                :placeholder="item.placeholder || `请输入${item.label}`"
+              />
+              
+              <!-- 日期选择器 -->
+              <el-date-picker
+                v-else-if="item.type === 'date'"
+                v-model="formData[item.prop]"
+                type="date"
+                :placeholder="item.placeholder || `请选择${item.label}`"
+                format="yyyy-MM-dd"
+                value-format="yyyy-MM-dd"
+                style="width: 100%"
+              />
+              
+              <!-- 选择框 -->
               <el-select 
                 v-else-if="item.type === 'select'"
                 v-model="formData[item.prop]" 
@@ -31,6 +53,7 @@
                 @change="item.onChange ? handleChange(item.onChange) : null"
                 :disabled="item.disabledCondition ? !formData[item.disabledCondition] : false"
               >
+                <!-- 静态选项 -->
                 <el-option 
                   v-for="option in item.options" 
                   :key="option.value" 
@@ -38,31 +61,13 @@
                   :value="option.value" 
                 />
                 
+                
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
       
       
-      <!-- 地址和邮编单独处理，因为它们跨两列 -->
-      <!-- <el-row :gutter="20">
-        <el-col :span="12">
-          <el-form-item label="具体地址" prop="address">
-            <el-input 
-              v-model="formData.address" 
-              placeholder="请输入具体地址"
-            />
-          </el-form-item>
-        </el-col>
-        <el-col :span="12">
-          <el-form-item label="邮编" prop="postalCode">
-            <el-input 
-              v-model="formData.postalCode" 
-              placeholder="请输入邮编"
-            />
-          </el-form-item>
-        </el-col>
-      </el-row> -->
       
       <div class="form-buttons">
         <el-button type="primary" @click="submitForm">提交</el-button>
@@ -158,7 +163,19 @@ export default {
         fkPosition: '',         // 岗位（fk）
         fixedPhone2: '',        // 固定电话2
         mobilePhone2: '',       // 手机号码2
-        email2: ''              // 邮箱2
+        email2: '',              // 邮箱2
+        operatorId: '',         // caozuoyuan号
+        zqCompany: '',          // 所属zq公司
+        regulatoryArea: '',     // zq公司所属监管辖区
+        applicationDate: '',    // 申请资格时间
+        changeTime: '',         // 变更时间
+        changeInfo: '',         // 变更信息
+        changeDate: '',         // 变更日期
+        khPositionCount: '',    // 小卖部kh岗人数
+        fkPositionCount: '',    // 小卖部fk岗人数
+        wkQualification: '',    // wk资格
+        hasZxQualification: '', // 是否zx资格
+        zxQualificationTime: '' // zx资格时间
       },
       provinceCityList: [
         {
@@ -275,6 +292,35 @@ export default {
         postalCode: [
           { required: true, message: '请输入邮编', trigger: 'blur' },
           { pattern: /^\d{6}$/, message: '邮编格式不正确，应为6位数字', trigger: 'blur' }
+        ],
+        zqCompany: [
+          { required: true, message: '请输入所属zq公司', trigger: 'blur' }
+        ],
+        regulatoryArea: [
+          { required: true, message: '请输入zq公司所属监管辖区', trigger: 'blur' }
+        ],
+        wkQualification: [
+          { required: true, message: '请选择wk资格', trigger: 'change' }
+        ],
+        hasZxQualification: [
+          { required: true, message: '请选择是否zx资格', trigger: 'change' }
+        ],
+        zxQualificationTime: [
+          { 
+            validator: (rule, value, callback) => {
+              // 如果选择了"是"，则必须填写日期
+              if (this.formData.hasZxQualification === '是' && !value) {
+                callback(new Error('当选择"是"时，此字段为必填项'));
+              } else if (this.formData.hasZxQualification === '是' && value) {
+                // 如果选择了"是"并且提供了值，则验证日期格式
+                callback();
+              } else {
+                // 如果选择了"否"，则不需要验证
+                callback();
+              }
+            },
+            trigger: 'change'
+          }
         ],
         // 新增字段的校验规则
         managerPhone: [
@@ -497,7 +543,96 @@ export default {
           prop: 'email2',
           type: 'input',
           placeholder: '请输入邮箱2'
-        }
+        },
+        {
+          label: 'caozuoyuan号',
+          prop: 'operatorId',
+          type: 'input',
+          placeholder: '请输入caozuoyuan号'
+        },
+        {
+          label: '所属zq公司',
+          prop: 'zqCompany',
+          type: 'input',
+          placeholder: '请输入所属zq公司',
+          required: true
+        },
+        {
+          label: 'zq公司所属监管辖区',
+          prop: 'regulatoryArea',
+          type: 'input',
+          placeholder: '请输入zq公司所属监管辖区',
+          required: true
+        },
+        {
+          label: '申请资格时间',
+          prop: 'applicationDate',
+          type: 'date',
+          placeholder: '请选择申请资格时间'
+        },
+        {
+          label: '变更时间',
+          prop: 'changeTime',
+          type: 'date',
+          placeholder: '请选择变更时间'
+        },
+        {
+          label: '变更信息',
+          prop: 'changeInfo',
+          type: 'input',
+          placeholder: '请输入变更信息'
+        },
+        
+        {
+          label: '小卖部kh岗人数',
+          prop: 'khPositionCount',
+          type: 'number',
+          placeholder: '请输入小卖部kh岗人数'
+        },
+        {
+          label: '小卖部fk岗人数',
+          prop: 'fkPositionCount',
+          type: 'number',
+          placeholder: '请输入小卖部fk岗人数'
+        },
+        {
+          label: 'wk资格',
+          prop: 'wkQualification',
+          type: 'select',
+          placeholder: '请选择wk资格',
+          required: true,
+          staticOptions: true,
+          options: [
+            { label: '开启', value: '开启' },
+            { label: '关闭', value: '关闭' }
+          ]
+        },
+        {
+          label: '是否zx资格',
+          prop: 'hasZxQualification',
+          type: 'select',
+          placeholder: '请选择是否zx资格',
+          required: true,
+          staticOptions: true,
+          options: [
+            { label: '是', value: '是' },
+            { label: '否', value: '否' }
+          ]
+        },
+        {
+          label: 'zx资格时间',
+          prop: 'zxQualificationTime',
+          type: 'date',
+          placeholder: '请选择zx资格时间',
+          conditionalDisplay: 'hasZxQualification', // 当hasZxQualification为'是'时显示
+          conditionValue: '是'
+        },
+        {
+          label: '变更日期',
+          prop: 'changeDate',
+          type: 'date',
+          placeholder: '请选择变更日期'
+        },
       ];
     },
     // 生成行结构，每行最多3个项目
