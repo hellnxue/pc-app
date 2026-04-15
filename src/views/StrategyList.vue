@@ -48,12 +48,24 @@
         :current-page.sync="currentPage"
         @current-change="handlePageChange" />
     </div>
+    
+    <!-- 编辑策略对话框 -->
+    <edit-strategy-dialog
+      :visible.sync="dialogVisible"
+      :strategy-data="currentStrategy"
+      @save="onSaveStrategy"
+    />
   </div>
 </template>
 
 <script>
+import EditStrategyDialog from '@/components/EditStrategyDialog.vue'
+
 export default {
   name: 'StrategyList',
+  components: {
+    EditStrategyDialog
+  },
   data() {
     return {
       filters: {
@@ -102,7 +114,9 @@ export default {
         }
       ],
       currentPage: 1,
-      pageSize: 10
+      pageSize: 10,
+      dialogVisible: false,
+      currentStrategy: {}
     }
   },
   computed: {
@@ -143,7 +157,8 @@ export default {
       this.$message.success(`已${row.status === 'enabled' ? '启用' : '停用'}：${row.name}`)
     },
     editStrategy(row) {
-      this.$message(`编辑任务: ${row.name}`)
+      this.currentStrategy = { ...row }
+      this.dialogVisible = true
     },
     deleteStrategy(row) {
       this.$confirm(`确定删除任务 ${row.name} 吗？`, '提示', {
@@ -157,6 +172,18 @@ export default {
     },
     handlePageChange(page) {
       this.currentPage = page
+    },
+    onSaveStrategy(formData) {
+      // 这里可以调用API保存数据
+      this.$message({
+        type: 'success',
+        message: `保存成功 - 任务名称: ${formData.name}, 间隔: ${formData.interval}分钟, 状态: ${formData.status}`
+      })
+      // 更新strategies数组中的相应项
+      const index = this.strategies.findIndex(item => item.id === this.currentStrategy.id)
+      if (index !== -1) {
+        this.strategies[index] = { ...this.strategies[index], ...formData }
+      }
     }
   }
 }

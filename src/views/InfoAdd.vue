@@ -701,8 +701,9 @@ export default {
 
        console.log('cityOptions===================',this.cityOptions);
 
-      },
-      onCityChange() {
+    },
+
+    onCityChange() {
 
       // 当城市改变时，清空区县选项
       this.formData.district = '';
@@ -727,13 +728,9 @@ export default {
         }
       }
     }
-
-    },
-
-     
    
   }
- 
+}
 </script>
 
 <style scoped>
