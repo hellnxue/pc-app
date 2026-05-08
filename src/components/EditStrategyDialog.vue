@@ -58,7 +58,18 @@ export default {
       formRules: {
         interval: [
           { required: true, message: '请输入间隔时间', trigger: 'blur' },
-          { pattern: /^\d+$/, message: '间隔时间必须为数字', trigger: 'blur' }
+          { pattern: /^\d+$/, message: '间隔时间必须为数字', trigger: 'blur' },
+          { 
+            validator: (rule, value, callback) => {
+              const num = parseInt(value, 10)
+              if (num < 0 || num > 24) {
+                callback(new Error('间隔时间需在0-24之间'))
+              } else {
+                callback()
+              }
+            },
+            trigger: 'blur'
+          }
         ],
         status: [
           { required: true, message: '请选择状态', trigger: 'change' }

@@ -6,7 +6,15 @@
         <el-input v-model="filters.keyword" placeholder="请输入任务名称/跟进员工/创建人" clearable style="width: 250px;" />
       </el-form-item>
       <el-form-item>
-        <el-select v-model="filters.status" placeholder="是否启用" clearable style="width: 130px;">
+        <el-select
+          v-model="filters.status"
+          multiple
+          collapse-tags
+          placeholder="是否启用"
+          style="width: 180px;"
+          @change="handleStatusChange"
+        >
+          <el-option label="全部" value="all" />
           <el-option label="启用" value="enabled" />
           <el-option label="停用" value="disabled" />
         </el-select>
@@ -70,7 +78,7 @@ export default {
     return {
       filters: {
         keyword: '',
-        status: ''
+        status: []
       },
       strategies: [
         {
@@ -131,8 +139,13 @@ export default {
             .includes(k)
         )
       }
-      if (this.filters.status) {
-        data = data.filter(item => item.status === this.filters.status)
+      if (this.filters.status.length > 0) {
+        // 如果包含"全部"选项，则不过滤（显示所有）
+        if (this.filters.status.includes('all')) {
+          // 不做任何过滤
+        } else {
+          data = data.filter(item => this.filters.status.includes(item.status))
+        }
       }
       return data.slice((this.currentPage - 1) * this.pageSize, this.currentPage * this.pageSize)
     }
@@ -143,8 +156,28 @@ export default {
     },
     resetFilters() {
       this.filters.keyword = ''
-      this.filters.status = ''
+      this.filters.status = []
       this.currentPage = 1
+    },
+    handleStatusChange(val) {
+      const allOptions = ['enabled', 'disabled']
+      // 点击"全部"
+      if (val.includes('all')) {
+        // if (val.length > 1) {
+        //   // 已选中其他选项，再点击全部 -> 只保留全部
+        //   this.filters.status = ['all']
+        // } else {
+        //   // 只有全部被点击 -> 选中所有
+        //   this.filters.status = allOptions
+        // }
+        this.filters.status = allOptions
+      } else {
+        // 没有点击全部，检查是否所有选项都被选中
+        if (val.length === allOptions.length) {
+          // 所有选项都选中了，自动勾选全部
+          this.filters.status = [...allOptions]
+        }
+      }
     },
     addStrategy() {
       this.$message({ type: 'success', message: '新增任务·分支操作' })

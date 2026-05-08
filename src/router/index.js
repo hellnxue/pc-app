@@ -44,6 +44,16 @@ const routes = [
     path: '/futuresPersonnelList',
     name: 'FuturesPersonnelList',
     component: () => import('../views/FuturesPersonnelList.vue')
+  },
+  {
+    path: '/analyse',
+    name: 'Analyse',
+    component: () => import('../views/Analyse.vue')
+  },
+  {
+    path: '/select',
+    name: 'select',
+    component: () => import('../views/select')
   }
 ];
 
