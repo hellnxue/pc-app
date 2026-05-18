@@ -13,6 +13,7 @@ export const getRandomColor = (list) => {
     } while (list.includes(color.toUpperCase()));
     return color;
 };
+ 
 export default {
   name: 'LineChart',
   props: {
@@ -100,6 +101,13 @@ export default {
       if (!this.chart) return
       
       const legendData = this.series.map(s => s.name)
+      // // 判断第一个是否为全公司，如果是不允许点击
+      // const selectDisabled = {}
+      // if (legendData.length > 0 && legendData[0] === '全公司') {
+      //   selectDisabled[legendData[0]] = true
+      // }
+      // console.log('selectDisabled=========',selectDisabled);
+      
       const seriesData = this.series.map((s, index) => {
         const defaultColor = s.color || colorConfig[(this.colorStartIndex + index) % colorConfig.length]
         const item = {
@@ -138,7 +146,7 @@ export default {
           left: '3.2%',
           right: '2.1%',
           top: '11%',
-          bottom: '18%'
+          bottom: '18%'   // 增加底部空间，给X轴标签留位置
         },
         tooltip: {
           trigger: 'axis',
@@ -151,15 +159,17 @@ export default {
           padding: 0,
           axisPointer: {
             type: 'line',
+            show:true,
             z: -101,
             lineStyle: {
               type: 'dashed',
               width: 1,
-              color: 'rgba(53, 142, 254, .5)'
+              color: 'gold'
             }
           },
           formatter(params) {
             if (!params || !params.length) return ''
+            
             const date = params[0].axisValue
             const headerHtml = `<div style="font-size: 12px; color: #999;text-align:left;">${date}</div>`
             const contentHtml = params.map(item => {
@@ -191,7 +201,9 @@ export default {
           pageTextStyle: {
             color: '#999'
           },
-          inactiveColor: '#999'
+          inactiveColor: '#999',
+          // selectedMode: true,
+          // selected: selectDisabled
         },
         xAxis: {
           type: 'category',
@@ -212,7 +224,15 @@ export default {
             show: true,
             color: '#666',
             fontSize: 12,
-            interval: 0
+            interval: 'auto',        // 自动轮转，根据数据量智能计算
+            rotate: 0,              // 标签不倾斜
+            // formatter: (value) => {
+            //   // 当标签过长时，截断显示
+            //   if (value && value.length > 6) {
+            //     return value.substring(0, 5) + '...'
+            //   }
+            //   return value
+            // }
           }
         },
         yAxis: {
@@ -248,8 +268,22 @@ export default {
         series: seriesData
       }
       
-      this.chart.setOption(option, true)
+      this.chart.setOption(option,true)
       this.upadteGridLeft()
+      
+      // 监听legend点击，第一个为全公司时不允许取消选中
+      if (legendData.length > 0 && legendData[0] === '全公司') {
+        this.chart.off('legendselectchanged')
+        this.chart.on('legendselectchanged', (params) => {
+          // 如果尝试取消选中全公司，重新选中它
+          if (!params.selected['全公司']) {
+            this.chart.dispatchAction({
+              type: 'legendSelect',
+              name: '全公司'
+            })
+          }
+        })
+      }
     },
     /**
  * 获取默认颜色
