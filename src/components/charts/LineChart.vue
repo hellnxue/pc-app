@@ -65,7 +65,11 @@ export default {
       customTooltipHtml: '',
       // 事件处理
       fn: null,
-      resizeObserver: null
+      resizeObserver: null,
+      // 记录鼠标位置和当前索引（用于 legend 切换后刷新 tooltip）
+      lastMouseX: 0,
+      lastMouseY: 0,
+      currentDataIndex: null
     }
   },
   watch: {
@@ -113,6 +117,10 @@ export default {
     onChartMouseMove(e) {
       if (this.isLocked) return
       
+      // 记录鼠标位置
+      this.lastMouseX = e.clientX
+      this.lastMouseY = e.clientY
+      
       const rect = this.$refs.chart.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
@@ -125,7 +133,7 @@ export default {
           if (dataIndex >= this.xAxisData.length) dataIndex = this.xAxisData.length - 1
           
           if (dataIndex >= 0 && dataIndex < this.xAxisData.length) {
-            // 显示自定义 tooltip
+            this.currentDataIndex = dataIndex
             this.showCustomTooltipAt(dataIndex, e.clientX, e.clientY)
           }
         }
@@ -147,6 +155,9 @@ export default {
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
       
+      this.lastMouseX = e.clientX
+      this.lastMouseY = e.clientY
+      
       try {
         const point = this.chart.convertFromPixel({ seriesIndex: 0 }, [x, y])
         if (point && point[0] !== undefined && point[0] !== null) {
@@ -155,6 +166,8 @@ export default {
           if (dataIndex >= this.xAxisData.length) dataIndex = this.xAxisData.length - 1
           
           if (dataIndex >= 0 && dataIndex < this.xAxisData.length) {
+            this.currentDataIndex = dataIndex
+            
             // 切换锁定状态：如果点击的是同一个点且已锁定，则解锁；否则锁定新点
             if (this.isLocked && this.lockedDataIndex === dataIndex) {
               this.unlockTooltip()
@@ -180,16 +193,37 @@ export default {
       this.unlockTooltip()
     },
 
+    // 获取当前可见的系列（根据 legend 选中状态）
+    getVisibleSeries() {
+      if (!this.chart) return this.series
+      
+      const option = this.chart.getOption()
+      const legendSelected = option.legend?.[0]?.selected || {}
+      
+      // 如果没有 legend 选中状态，返回所有系列
+      if (Object.keys(legendSelected).length === 0) {
+        return this.series
+      }
+      
+      // 过滤出可见的系列
+      return this.series.filter(s => legendSelected[s.name] !== false)
+    },
+
     // 在指定数据索引位置显示 tooltip
     showCustomTooltipAt(dataIndex, mouseX, mouseY) {
-      // 收集所有系列在该索引的数据
+      // 获取当前可见的系列
+      const visibleSeries = this.getVisibleSeries()
+      
+      // 收集所有可见系列在该索引的数据
       const tooltipData = []
       let hasValidData = false
       
-      this.series.forEach((s, idx) => {
+      visibleSeries.forEach((s, idx) => {
+        // 需要找到原始 series 中的真实索引，用于获取颜色
+        const originalIndex = this.series.findIndex(orig => orig.name === s.name)
         if (s.data && s.data[dataIndex] !== undefined && s.data[dataIndex] !== null) {
           hasValidData = true
-          const color = s.color || colorConfig[(this.colorStartIndex + idx) % colorConfig.length]
+          const color = s.color || colorConfig[(this.colorStartIndex + (originalIndex !== -1 ? originalIndex : idx)) % colorConfig.length]
           let value = s.data[dataIndex]
           if (typeof value === 'number') {
             value = value.toFixed(2)
@@ -202,11 +236,14 @@ export default {
         }
       })
       
-      if (!hasValidData || tooltipData.length === 0) return
+      if (!hasValidData || tooltipData.length === 0) {
+        this.showCustomTooltip = false
+        return
+      }
       
       const date = this.xAxisData[dataIndex] || ''
       
-      // 构建 HTML 结构
+      // 使用原来的 tooltip 样式构建 HTML 结构
       const headerHtml = `<div style="font-size: 12px; color: #999; text-align: left;">${date}</div>`
       const contentHtml = tooltipData.map(item => {
         return `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
@@ -226,23 +263,38 @@ export default {
       this.customTooltipTop = mouseY - 10
       this.showCustomTooltip = true
       
-      // 边界检测，防止 tooltip 超出屏幕右侧
+      // 边界检测，防止 tooltip 超出屏幕
       this.$nextTick(() => {
         const tooltipEl = document.querySelector('.custom-tooltip')
         if (tooltipEl) {
           const rect = tooltipEl.getBoundingClientRect()
           const windowWidth = window.innerWidth
+          const windowHeight = window.innerHeight
+          
           if (rect.right > windowWidth - 10) {
             this.customTooltipLeft = mouseX - rect.width - 15
           }
           if (this.customTooltipLeft < 10) {
             this.customTooltipLeft = 10
           }
-          if (rect.bottom > window.innerHeight - 10) {
+          if (rect.bottom > windowHeight - 10) {
             this.customTooltipTop = mouseY - rect.height - 10
+          }
+          if (this.customTooltipTop < 10) {
+            this.customTooltipTop = 10
           }
         }
       })
+    },
+
+    // 刷新 tooltip（legend 切换后调用）
+    refreshTooltipAfterLegendChange() {
+      if (this.showCustomTooltip && this.currentDataIndex !== null) {
+        // 使用记录的位置重新生成 tooltip
+        const mouseX = this.lastMouseX || (this.customTooltipLeft + 10)
+        const mouseY = this.lastMouseY || (this.customTooltipTop + 10)
+        this.showCustomTooltipAt(this.currentDataIndex, mouseX, mouseY)
+      }
     },
 
     // 解锁 tooltip
@@ -258,6 +310,7 @@ export default {
       // 重置锁定状态
       this.isLocked = false
       this.showCustomTooltip = false
+      this.currentDataIndex = null
       
       const legendData = this.series.map(s => s.name)
       const seriesData = this.series.map((s, index) => {
@@ -267,8 +320,6 @@ export default {
           type: 'line',
           data: s.data,
           showSymbol: false,
-          // symbol: 'circle',
-          // symbolSize: 6,
           lineStyle: {
             width: 2,
             color: defaultColor
@@ -311,7 +362,6 @@ export default {
           bottom: '18%',
           containLabel: false
         },
-        // 启用原生 tooltip 来显示 axisPointer
         tooltip: {
           trigger: 'axis',
           show: true,
@@ -323,58 +373,18 @@ export default {
           padding: 0,
           axisPointer: {
             type: 'line',
-            show:true,
+            show: true,
             z: -101,
             lineStyle: {
               type: 'dashed',
               width: 1,
-              color: 'gold'
+              color: 'rgba(153,153,153,.3)'
             }
           },
           formatter() {
             return ''
           }
         },
-        // tooltip: {
-        //   trigger: 'axis',
-        //   show: true,
-        //   // 通过 formatter 返回空字符串来隐藏原生 tooltip 内容
-        //   formatter: () => '',
-        //   // axisPointer: {
-        //   //   type: 'line',
-        //   //   show: true,
-        //   //   snap: true,
-        //   //   lineStyle: {
-        //   //     type: 'dashed',
-        //   //     width: 1,
-        //   //     color: '#D20A10'
-        //   //   },
-        //   //   label: {
-        //   //     show: true,
-        //   //     backgroundColor: '#D20A10',
-        //   //     color: '#fff',
-        //   //     padding: [2, 6, 2, 6],
-        //   //     borderRadius: 4
-        //   //   }
-        //   // }
-          
-        //   borderWidth: 0,
-        //   confine: true,
-        //   enterable: true,
-        //   extraCssText: 'box-shadow: 0 0 6px 2px #00000014;',
-        //   backgroundColor: '#fff',
-        //   padding: 0,
-        //   axisPointer: {
-        //     type: 'line',
-        //     show:true,
-        //     z: -101,
-        //     lineStyle: {
-        //       type: 'dashed',
-        //       width: 1,
-        //       color: 'gold'
-        //     }
-        //   },
-        // },
         legend: {
           itemWidth: 12,
           itemHeight: 12,
@@ -451,18 +461,22 @@ export default {
       this.chart.setOption(option, true)
       this.updateGridLeft()
       
-      // 监听 legend 点击，第一个为全公司时不允许取消选中
-      if (legendData.length > 0 && legendData[0] === '全公司') {
-        this.chart.off('legendselectchanged')
-        this.chart.on('legendselectchanged', (params) => {
+      // 监听 legend 点击，动态更新 tooltip 内容
+      this.chart.off('legendselectchanged')
+      this.chart.on('legendselectchanged', (params) => {
+        // 处理全公司逻辑（如果存在）
+        if (legendData.length > 0 && legendData[0] === '全公司') {
           if (!params.selected['全公司']) {
             this.chart.dispatchAction({
               type: 'legendSelect',
               name: '全公司'
             })
+            return
           }
-        })
-      }
+        }
+        // 刷新 tooltip 内容
+        this.refreshTooltipAfterLegendChange()
+      })
     },
 
     updateGridLeft() {
