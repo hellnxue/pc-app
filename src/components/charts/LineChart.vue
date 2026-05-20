@@ -372,11 +372,14 @@ export default {
       const legendData = this.series.map(s => s.name)
       const seriesData = this.series.map((s, index) => {
         const defaultColor = s.color || colorConfig[(this.colorStartIndex + index) % colorConfig.length]
+        // 如果只有一个数据点，强制显示 symbol
+        const hasSinglePoint = s.data && s.data.length === 1
         const seriesConfig = {
           name: s.name,
           type: 'line',
           data: s.data,
-          showSymbol: false,
+          showSymbol: hasSinglePoint,
+          symbolSize: hasSinglePoint ? 8 : 0,
           lineStyle: {
             width: 2,
             color: defaultColor
@@ -385,9 +388,14 @@ export default {
             color: defaultColor
           },
           emphasis: {
-            scale: false,
+            scale: hasSinglePoint ? 1.5 : false,
             focus: 'none'
           }
+        }
+        
+        // 只有一个数据点时，让线条两端都显示圆点
+        if (hasSinglePoint) {
+          seriesConfig.lineStyle.width = 0 // 隐藏线条，只显示点
         }
         
         if (this.showArea) {
