@@ -20,7 +20,7 @@
 
 <script>
 import * as echarts from 'echarts'
-import { debounce } from 'lodash'
+import { debounce, throttle } from 'lodash'
 
 export const colorConfig = ['#D20A10', '#C6A560', '#5D7092', '#F6BD16', '#5B8FF9', '#6DC8EC', '#9270CA', '#70CAB9', '#F798A7']
 export const getRandomColor = (list) => {
@@ -88,7 +88,8 @@ export default {
       lastMouseY: 0,
       currentDataIndex: null,
       // 选中的 legend 数据
-      selectedLegendData: []
+      selectedLegendData: [],
+      scrollContainer: null
     }
   },
   watch: {
@@ -108,10 +109,14 @@ export default {
   mounted() {
     this.initChart()
     this.fn = debounce(this.handleResize, 100)
+    this.throttleScroll = throttle(this.handleScroll, 100)
     window.addEventListener('resize', this.fn)
+    // 监听 analyse-container 滚动
+    this.bindScrollContainer()
   },
   beforeDestroy() {
     window.removeEventListener('resize', this.fn)
+    this.unbindScrollContainer()
     if (this.resizeObserver) {
       this.resizeObserver.disconnect()
     }
@@ -583,6 +588,42 @@ export default {
       if (this.chart) {
         this.chart.resize()
         this.updateGridLeft()
+      }
+    },
+
+    // 页面滚动时解锁固定 tooltip
+    handleScroll() {
+      console.log('滚动触发==========')
+      if (this.isLocked) {
+        this.unlockTooltip()
+      }
+    },
+
+    // 绑定 charts-container 滚动事件
+    bindScrollContainer() {
+      this.$nextTick(() => {
+
+        this.scrollContainer = document.querySelector('.charts-container')
+        if (this.scrollContainer) {
+          this.scrollContainer.addEventListener('scroll', this.throttleScroll, { passive: true })
+        } else {
+          // 元素未就绪，延迟重试，最多重试 50 次（5秒）
+          if (!this._scrollBindRetries) {
+            this._scrollBindRetries = 0
+          }
+          if (this._scrollBindRetries < 50) {
+            this._scrollBindRetries++
+            setTimeout(() => this.bindScrollContainer(), 100)
+          }
+        }
+      })
+    },
+
+    // 解绑滚动事件
+    unbindScrollContainer() {
+      if (this.scrollContainer) {
+        this.scrollContainer.removeEventListener('scroll', this.throttleScroll)
+        this.scrollContainer = null
       }
     }
   }
