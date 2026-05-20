@@ -1,6 +1,12 @@
 <template>
   <div style="position: relative; width: 100%; height: 100%;">
-    <div ref="chart" class="line-chart" @click="onChartClick" @mousemove="onChartMouseMove" @mouseleave="onChartMouseLeave"></div>
+    <!-- 空数据占位区域 -->
+    <div v-if="isEmptyData" class="empty-placeholder">
+      <span>暂无数据</span>
+    </div>
+    
+    <!-- 图表 -->
+    <div v-show="!isEmptyData" ref="chart" class="line-chart" @click="onChartClick" @mousemove="onChartMouseMove" @mouseleave="onChartMouseLeave"></div>
     
     <!-- 自定义 tooltip -->
     <div v-if="showCustomTooltip" 
@@ -50,6 +56,13 @@ export default {
     colorStartIndex: {
       type: Number,
       default: 0
+    }
+  },
+  computed: {
+    // 判断是否为空数据
+    isEmptyData() {
+      if (!this.series || this.series.length === 0) return true
+      return this.series.every(s => !s.data || s.data.length === 0)
     }
   },
   data() {
@@ -569,6 +582,20 @@ export default {
   height: 100%;
   min-height: 300px;
   cursor: crosshair;
+}
+
+/* 空数据占位区域 */
+.empty-placeholder {
+  width: 100%;
+  height: 100%;
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 4px;
+  color: #999;
+  font-size: 16px;
 }
 
 /* 隐藏原生 tooltip 的弹框，只保留 axisPointer */
