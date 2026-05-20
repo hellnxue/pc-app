@@ -69,7 +69,9 @@ export default {
       // 记录鼠标位置和当前索引（用于 legend 切换后刷新 tooltip）
       lastMouseX: 0,
       lastMouseY: 0,
-      currentDataIndex: null
+      currentDataIndex: null,
+      // 选中的 legend 数据
+      selectedLegendData: []
     }
   },
   watch: {
@@ -297,6 +299,21 @@ export default {
       }
     },
 
+    // 更新选中的 legend 数据
+    updateSelectedLegendData() {
+      if (!this.chart) return
+      
+      const option = this.chart.getOption()
+      const selected = option.legend?.[0]?.selected || {}
+      
+      // 获取选中的 legend 对应的 series 数据
+      this.selectedLegendData = this.series.filter(s => selected[s.name] !== false).map(s => ({
+        name: s.name,
+        data: s.data,
+        color: s.color || colorConfig[(this.colorStartIndex + this.series.findIndex(orig => orig.name === s.name)) % colorConfig.length]
+      }))
+    },
+
     // 解锁 tooltip
     unlockTooltip() {
       this.isLocked = false
@@ -461,6 +478,9 @@ export default {
       this.chart.setOption(option, true)
       this.updateGridLeft()
       
+      // 初始化选中的 legend 数据
+      this.updateSelectedLegendData()
+      
       // 监听 legend 点击，动态更新 tooltip 内容
       this.chart.off('legendselectchanged')
       this.chart.on('legendselectchanged', (params) => {
@@ -474,6 +494,8 @@ export default {
             return
           }
         }
+        // 更新选中的 legend 数据
+        this.updateSelectedLegendData()
         // 刷新 tooltip 内容
         this.refreshTooltipAfterLegendChange()
       })
