@@ -115,6 +115,21 @@ export default {
       this.resizeObserver.observe(this.$refs.chart)
     },
 
+    isPointInPlotArea(x, y) {
+      if (!this.chart) return false
+      if (typeof this.chart.containPixel === 'function') {
+        try {
+          return this.chart.containPixel({ gridIndex: 0 }, [x, y])
+        } catch (err) {
+          console.warn('containPixel error:', err)
+        }
+      }
+      const grid = this.chart.getModel().getComponent('grid')?.[0]
+      if (!grid) return false
+      const rect = grid.getRect()
+      return x >= rect.x && x <= rect.x + rect.width && y >= rect.y && y <= rect.y + rect.height
+    },
+
     // 图表鼠标移动事件
     onChartMouseMove(e) {
       if (this.isLocked) return
@@ -126,6 +141,11 @@ export default {
       const rect = this.$refs.chart.getBoundingClientRect()
       const x = e.clientX - rect.left
       const y = e.clientY - rect.top
+
+      if (!this.isPointInPlotArea(x, y)) {
+        this.showCustomTooltip = false
+        return
+      }
       
       try {
         const point = this.chart.convertFromPixel({ seriesIndex: 0 }, [x, y])
@@ -159,6 +179,13 @@ export default {
       
       this.lastMouseX = e.clientX
       this.lastMouseY = e.clientY
+      
+      if (!this.isPointInPlotArea(x, y)) {
+        if (!this.isLocked) {
+          this.showCustomTooltip = false
+        }
+        return
+      }
       
       try {
         const point = this.chart.convertFromPixel({ seriesIndex: 0 }, [x, y])
