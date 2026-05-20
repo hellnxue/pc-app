@@ -56,6 +56,10 @@ export default {
     colorStartIndex: {
       type: Number,
       default: 0
+    },
+    yAxisName: {
+      type: String,
+      default: '开户率(%)'
     }
   },
   computed: {
@@ -347,11 +351,7 @@ export default {
       const selected = option.legend?.[0]?.selected || {}
       
       // 获取选中的 legend 对应的 series 数据
-      this.selectedLegendData = this.series.filter(s => selected[s.name] !== false).map(s => ({
-        name: s.name,
-        data: s.data,
-        color: s.color || colorConfig[(this.colorStartIndex + this.series.findIndex(orig => orig.name === s.name)) % colorConfig.length]
-      }))
+      this.selectedLegendData = this.series.filter(s => selected[s.name] !== false).map(s => (s.code))
     },
 
     // 解锁 tooltip
@@ -373,13 +373,13 @@ export default {
       const seriesData = this.series.map((s, index) => {
         const defaultColor = s.color || colorConfig[(this.colorStartIndex + index) % colorConfig.length]
         // 如果只有一个数据点，强制显示 symbol
-        const hasSinglePoint = s.data && s.data.length === 1
+        const hasSinglePoint = s.data && s.data.length === 1        
         const seriesConfig = {
           name: s.name,
           type: 'line',
           data: s.data,
           showSymbol: hasSinglePoint,
-          symbolSize: hasSinglePoint ? 8 : 0,
+          symbolSize: hasSinglePoint ? 8 : 4,
           lineStyle: {
             width: 2,
             color: defaultColor
@@ -454,7 +454,7 @@ export default {
           itemWidth: 12,
           itemHeight: 12,
           itemGap: 20,
-          icon: 'rect',
+          icon: 'roundRect',
           data: legendData,
           bottom: 0,
           type: 'scroll',
@@ -462,8 +462,13 @@ export default {
           pageIconColor: '#999',
           pageIconInactiveColor: '#ccc',
           pageIconSize: 12,
+          textStyle: {
+            color: '#666',
+            fontSize: 11
+          },
           pageTextStyle: {
-            color: '#999'
+            color: '#999',
+            fontSize: 12
           },
           inactiveColor: '#999'
         },
@@ -492,7 +497,7 @@ export default {
         },
         yAxis: {
           type: 'value',
-          name: '开户率(%)',
+          name:this.yAxisName,
           nameTextStyle: {
             color: '#999',
             fontSize: 12,
