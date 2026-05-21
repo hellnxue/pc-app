@@ -65,8 +65,9 @@ export default {
   computed: {
     // 判断是否为空数据
     isEmptyData() {
-      if (!this.series || this.series.length === 0) return true
-      return this.series.every(s => !s.data || s.data.length === 0)
+      const safeSeries = (this.series || []).filter(Boolean)
+      if (safeSeries.length === 0) return true
+      return safeSeries.every(s => !s.data || s.data.length === 0)
     }
   },
   data() {
@@ -246,18 +247,19 @@ export default {
 
     // 获取当前可见的系列（根据 legend 选中状态）
     getVisibleSeries() {
-      if (!this.chart) return this.series
+      const safeSeries = (this.series || []).filter(Boolean)
+      if (!this.chart) return safeSeries
       
       const option = this.chart.getOption()
       const legendSelected = option.legend?.[0]?.selected || {}
       
       // 如果没有 legend 选中状态，返回所有系列
       if (Object.keys(legendSelected).length === 0) {
-        return this.series
+        return safeSeries
       }
       
       // 过滤出可见的系列
-      return this.series.filter(s => legendSelected[s.name] !== false)
+      return safeSeries.filter(s => legendSelected[s.name] !== false)
     },
 
     // 在指定数据索引位置显示 tooltip
@@ -271,7 +273,7 @@ export default {
       
       visibleSeries.forEach((s, idx) => {
         // 需要找到原始 series 中的真实索引，用于获取颜色
-        const originalIndex = this.series.findIndex(orig => orig.name === s.name)
+        const originalIndex = (this.series || []).filter(Boolean).findIndex(orig => orig.name === s.name)
         if (s.data && s.data[dataIndex] !== undefined && s.data[dataIndex] !== null) {
           hasValidData = true
           const color = s.color || colorConfig[(this.colorStartIndex + (originalIndex !== -1 ? originalIndex : idx)) % colorConfig.length]
@@ -355,7 +357,7 @@ export default {
       const selected = option.legend?.[0]?.selected || {}
       
       // 获取选中的 legend 对应的 series 数据
-      this.selectedLegendData = this.series.filter(s => selected[s.name] !== false).map(s => (s.code))
+      this.selectedLegendData = (this.series || []).filter(Boolean).filter(s => selected[s.name] !== false).map(s => (s.code))
     },
 
     // 解锁 tooltip
@@ -366,7 +368,17 @@ export default {
     },
 
     updateChart() {
-      if (!this.chart || !this.$refs.chart) return
+      try {
+        this._updateChartInner()
+      } catch (err) {
+        console.error('[LineChart] updateChart 错误:', err.message, err.stack)
+        console.error('[LineChart] series 快照:', JSON.stringify((this.series || []).map(s => s ? { name: s.name, dataLen: (s.data || []).length } : null)))
+        console.error('[LineChart] xAxisData 长度:', (this.xAxisData || []).length)
+      }
+    },
+
+    _updateChartInner() {
+      if (!this.$refs.chart) return
       
       // 重置锁定状态
       this.isLocked = false
@@ -382,17 +394,32 @@ export default {
       }
       this.chart = echarts.init(this.$refs.chart)
       
-      const legendData = this.series.map(s => s.name)
-      const seriesData = this.series.map((s, index) => {
+      // 统一获取有效 series，与其他方法保持一致
+      const safeSeries = (this.series || []).filter(Boolean)
+      const legendData = safeSeries.map(s => s.name)
+      // 判断是否大数据量（阈值 1000）
+      const maxDataLength = Math.max(...safeSeries.map(s => (Array.isArray(s.data) ? s.data.length : 0)), 0)
+      const isLargeData = maxDataLength > 1000
+      const seriesData = safeSeries.map((s, index) => {
         const defaultColor = s.color || colorConfig[(this.colorStartIndex + index) % colorConfig.length]
+        // 确保 data 是数组，并将字符串/非法值转为数字（避免 ECharts 内部渲染崩溃）
+        const rawData = Array.isArray(s.data) ? s.data : []
+        const cleanData = rawData.map(v => {
+          if (v === undefined || v === null) return null
+          const n = Number(v)
+          return isNaN(n) ? null : n
+        })
         // 如果只有一个数据点，强制显示 symbol
-        const hasSinglePoint = s.data && s.data.length === 1        
+        const hasSinglePoint = cleanData.length === 1        
         const seriesConfig = {
           name: s.name,
           type: 'line',
-          data: s.data,
-          showSymbol: hasSinglePoint,
-          symbolSize: hasSinglePoint ? 8 : 4,
+          data: cleanData,
+          showSymbol: false,
+          // ECharts large 模式在 category xAxis 下兼容性差，仅用 sampling 降采样
+          ...(isLargeData ? {
+            sampling: 'lttb'
+          } : {}),
           lineStyle: {
             width: 2,
             color: defaultColor
@@ -404,6 +431,12 @@ export default {
             scale: hasSinglePoint ? 1.5 : false,
             focus: 'none'
           }
+        }
+        
+        // 单点或小数据量时显示 symbol
+        if (hasSinglePoint) {
+          seriesConfig.showSymbol = true
+          seriesConfig.symbolSize = 8
         }
         
         // 只有一个数据点时，让线条两端都显示圆点
@@ -433,6 +466,8 @@ export default {
       })
       
       const option = {
+        // 大数据量时关闭动画
+        ...(isLargeData ? { animation: false } : {}),
         grid: {
           left: '3.2%',
           right: '2.1%',
@@ -487,7 +522,7 @@ export default {
         },
         xAxis: {
           type: 'category',
-          data: this.xAxisData,
+          data: this.xAxisData || [],
           boundaryGap: false,
           axisTick: {
             alignWithLabel: true,
