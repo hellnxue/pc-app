@@ -366,17 +366,21 @@ export default {
     },
 
     updateChart() {
-      if (!this.chart) return
+      if (!this.chart || !this.$refs.chart) return
       
       // 重置锁定状态
       this.isLocked = false
+      this.lockedDataIndex = null
       this.showCustomTooltip = false
       this.currentDataIndex = null
       this.lastMouseX = 0
       this.lastMouseY = 0
       
-      // 先清空图表，避免残留
-      this.chart.clear()
+      // 销毁旧实例，重建图表（数据量大变时避免渲染异常）
+      if (this.chart) {
+        this.chart.dispose()
+      }
+      this.chart = echarts.init(this.$refs.chart)
       
       const legendData = this.series.map(s => s.name)
       const seriesData = this.series.map((s, index) => {
