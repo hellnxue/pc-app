@@ -372,6 +372,11 @@ export default {
       this.isLocked = false
       this.showCustomTooltip = false
       this.currentDataIndex = null
+      this.lastMouseX = 0
+      this.lastMouseY = 0
+      
+      // 先清空图表，避免残留
+      this.chart.clear()
       
       const legendData = this.series.map(s => s.name)
       const seriesData = this.series.map((s, index) => {
