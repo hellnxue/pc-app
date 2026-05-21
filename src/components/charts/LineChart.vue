@@ -294,7 +294,6 @@ export default {
       
       const date = this.xAxisData[dataIndex] || ''
       
-      // 使用原来的 tooltip 样式构建 HTML 结构
       const headerHtml = `<div style="font-size: 12px; color: #999; text-align: left;">${date}</div>`
       const contentHtml = tooltipData.map(item => {
         return `<div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
@@ -551,6 +550,10 @@ export default {
             })
             return
           }
+        }
+        // 如果 tooltip 处于锁定状态，先解锁隐藏
+        if (this.isLocked) {
+          this.unlockTooltip()
         }
         // 更新选中的 legend 数据
         this.updateSelectedLegendData()
