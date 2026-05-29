@@ -1,9 +1,9 @@
-// 默认的JS配置
+// 默认的JS配置（支持额外字段）
 let currentJSConfig = {
     columnList: [
-        { prop: 'processType', label: '流程类型', width: 120 },
-        { prop: 'oaProcessNumber', label: 'OA流程单号', width: 150 },
-        { prop: 'futuresFtpCode', label: '期货FTP编码', width: 120 },
+        { prop: 'processType', label: '流程类型', width: 120, type: 'select', placeholder: '请选择流程类型',falg:true },
+        { prop: 'oaProcessNumber', label: 'OA流程单号', width: 150, type: 'input', placeholder: '请输入OA流程单号' },
+        { prop: 'futuresFtpCode', label: '期货FTP编码', width: 120, type: 'input', placeholder: '请输入期货FTP编码' },
     ]
 };
 
@@ -96,6 +96,8 @@ function displayExcelPreview(data) {
             <p class="info">📌 API文档格式：字段名 | 字段说明 | 字段类型</p>
             <p>共解析到 <strong>${apiFields.length}</strong> 个API字段</p>
             <p class="info">🎯 将只匹配配置中的 <strong>${currentJSConfig.columnList.length}</strong> 个字段，多余字段不会出现在结果中</p>
+            <p class="info">✨ 保留所有额外配置字段（type、placeholder、rules等）</p>
+            <p class="info">🏷️ 保留JS原有的label（中文显示名），只替换prop为API字段名</p>
         </div>
         <div style="overflow-x: auto;">
             <table>
@@ -361,7 +363,17 @@ function renderMappingTable() {
         
         const row = tbody.insertRow();
         row.insertCell(0).innerHTML = `<code>${escapeHtml(item.prop)}</code>`;
-        row.insertCell(1).innerHTML = escapeHtml(item.label);
+        
+        // 显示额外的配置字段
+        let extraConfig = [];
+        if (item.type) extraConfig.push(`type: ${item.type}`);
+        if (item.placeholder) extraConfig.push(`placeholder: ${item.placeholder}`);
+        if (Object.keys(item).length > 3) {
+            const otherKeys = Object.keys(item).filter(k => !['prop', 'label', 'width'].includes(k));
+            extraConfig.push(...otherKeys.map(k => `${k}: ${JSON.stringify(item[k])}`));
+        }
+        const extraHtml = extraConfig.length > 0 ? `<div style="font-size: 11px; color: #888; margin-top: 4px;">📎 ${extraConfig.join(', ')}</div>` : '';
+        row.insertCell(1).innerHTML = escapeHtml(item.label) + extraHtml;
         
         // 创建下拉选择框
         const selectCell = row.insertCell(2);
@@ -428,6 +440,8 @@ function updateMatchStats() {
             <strong>📊 匹配统计：</strong><br/>
             ✅ 已匹配: ${matchedCount}/${currentJSConfig.columnList.length} 个字段<br/>
             🎯 精确匹配: ${exactMatchCount} 个<br/>
+            ✨ 将保留所有额外配置字段（type、placeholder等）<br/>
+            🏷️ 将保留JS原有的label（中文显示名）<br/>
             ${matchedCount === currentJSConfig.columnList.length ? '🎉 全部匹配完成！' : ''}
             ${matchedCount < currentJSConfig.columnList.length ? '⚠️ 请手动匹配未完成的字段' : ''}
         </div>
@@ -453,7 +467,7 @@ function initializeMapping() {
     autoMatch();
 }
 
-// 应用映射并生成代码
+// 应用映射并生成代码（保留JS原有的label）
 function applyMapping() {
     const newColumnList = [];
     
@@ -461,41 +475,38 @@ function applyMapping() {
     currentJSConfig.columnList.forEach(jsItem => {
         const mapping = currentMapping[jsItem.prop];
         
+        // 创建新对象，复制所有原始字段
+        const newItem = { ...jsItem };
+        
         if (mapping && mapping.excelField && mapping.fieldInfo) {
-            // 成功匹配到API字段
-            newColumnList.push({
-                prop: mapping.excelField,
-                label: mapping.fieldInfo.description || mapping.excelField,
-                width: jsItem.width,
-                _meta: {
-                    originalProp: jsItem.prop,
-                    originalLabel: jsItem.label,
-                    fieldType: mapping.fieldInfo.type,
-                    fieldDescription: mapping.fieldInfo.description,
-                    matchScore: mapping.similarity,
-                    matchType: mapping.matchType
-                }
-            });
+            // 成功匹配到API字段，只更新prop，保留原有的label
+            newItem.prop = mapping.excelField;
+            // 注意：不修改label，保留JS原有的label
+            // newItem.label 保持不变，还是原来的中文显示名
+            
+            // 添加匹配元数据（可选，用于调试）
+            newItem._matchInfo = {
+                originalProp: jsItem.prop,
+                apiFieldName: mapping.excelField,
+                apiDescription: mapping.fieldInfo.description,
+                fieldType: mapping.fieldInfo.type,
+                matchScore: mapping.similarity,
+                matchType: mapping.matchType,
+                note: 'prop已替换为API字段名，label保持原JS配置'
+            };
         } else {
             // 未匹配的字段，保留原配置但标记
-            newColumnList.push({
-                prop: jsItem.prop,
-                label: jsItem.label,
-                width: jsItem.width,
-                _meta: {
-                    note: '⚠️ 未匹配到API字段，请手动确认'
-                }
-            });
+            newItem._matchInfo = {
+                note: '⚠️ 未匹配到API字段，请手动确认'
+            };
         }
+        
+        newColumnList.push(newItem);
     });
     
-    // 生成基础配置（不包含_meta字段）
+    // 生成基础配置（移除_matchInfo元数据）
     const baseConfig = {
-        columnList: newColumnList.map(({ prop, label, width }) => ({ 
-            prop, 
-            label, 
-            width 
-        }))
+        columnList: newColumnList.map(({ _matchInfo, ...item }) => item)
     };
     
     // 生成详细配置（包含元数据）
@@ -503,11 +514,12 @@ function applyMapping() {
         columnList: newColumnList,
         summary: {
             totalFields: currentJSConfig.columnList.length,
-            mappedFields: newColumnList.filter(f => !f._meta?.note).length,
-            exactMatches: newColumnList.filter(f => f._meta?.matchType === 'exact').length,
-            highMatches: newColumnList.filter(f => f._meta?.matchType === 'high').length,
-            unmatchedFields: newColumnList.filter(f => f._meta?.note).length,
-            generatedAt: new Date().toLocaleString()
+            mappedFields: newColumnList.filter(f => !f._matchInfo?.note).length,
+            exactMatches: newColumnList.filter(f => f._matchInfo?.matchType === 'exact').length,
+            highMatches: newColumnList.filter(f => f._matchInfo?.matchType === 'high').length,
+            unmatchedFields: newColumnList.filter(f => f._matchInfo?.note).length,
+            generatedAt: new Date().toLocaleString(),
+            note: 'prop已替换为API字段名，label保留JS原始配置'
         }
     };
     
@@ -515,14 +527,18 @@ function applyMapping() {
 // 从API文档生成的配置代码
 // 生成时间: ${new Date().toLocaleString()}
 // ============================================
-// 说明：只包含 columnList 中配置的 ${currentJSConfig.columnList.length} 个字段
-// Excel中的其他字段未包含在此配置中
+// 说明：
+// 1. 只包含 columnList 中配置的 ${currentJSConfig.columnList.length} 个字段
+// 2. Excel中的其他字段未包含在此配置中
+// 3. ✨ prop 已替换为API文档中的字段名
+// 4. 🏷️ label 保留JS原有的中文显示名（未使用API文档的说明）
+// 5. ✨ 保留了所有原始额外配置字段（type、placeholder、rules等）
 // ============================================
 
-// 基础配置（仅包含prop, label, width）
+// 基础配置（仅包含业务字段，已移除元数据）
 const columnList = ${JSON.stringify(baseConfig.columnList, null, 4)};
 
-// 详细配置（包含类型、说明等完整信息，以及匹配状态）
+// 详细配置（包含类型、说明、匹配信息等完整数据）
 const detailedColumnList = ${JSON.stringify(detailedConfig.columnList, null, 4)};
 
 // 配置摘要
@@ -540,7 +556,7 @@ import { columnList } from './columnConfig';
 export default {
   data() {
     return {
-      columns: columnList
+      columns: columnList  // prop是API字段名，label是中文显示名
     }
   }
 }
@@ -549,6 +565,11 @@ export default {
 import { detailedColumnList, configSummary } from './columnConfig';
 console.log('匹配摘要:', configSummary);
 console.log('详细匹配信息:', detailedColumnList);
+
+// 注意：
+// - prop: 已替换为API字段名（用于数据绑定）
+// - label: 保留JS原有配置（用于表格显示）
+// - 所有额外字段（type、placeholder等）都已保留
 */
 `;
     
@@ -558,8 +579,12 @@ console.log('详细匹配信息:', detailedColumnList);
     
     // 显示成功消息
     const summary = detailedConfig.summary;
+    const extraFieldsCount = currentJSConfig.columnList.filter(item => 
+        Object.keys(item).some(k => !['prop', 'label', 'width'].includes(k))
+    ).length;
+    
     showNotification(
-        `✅ 生成成功！精确匹配: ${summary.exactMatches}, 高相似度: ${summary.highMatches}, 未匹配: ${summary.unmatchedFields}`,
+        `✅ 生成成功！已匹配 ${summary.mappedFields} 个字段，prop已替换，label保持原样，保留了 ${extraFieldsCount} 个字段的额外配置`,
         'success'
     );
 }
@@ -590,6 +615,7 @@ function showNotification(message, type) {
         animation: slideIn 0.3s ease;
         box-shadow: 0 2px 10px rgba(0,0,0,0.2);
         z-index: 10000;
+        max-width: 450px;
     `;
     document.body.appendChild(notification);
     setTimeout(() => notification.remove(), 3000);
@@ -623,6 +649,7 @@ style.textContent = `
 document.head.appendChild(style);
 
 // 工具初始化完成
-console.log('✅ API文档字段映射工具已就绪（改进版）');
+console.log('✅ API文档字段映射工具已就绪（保留JS原有label）');
 console.log('📌 请上传格式为 [字段名 | 字段说明 | 字段类型] 的Excel文件');
-console.log(`📌 当前配置了 ${currentJSConfig.columnList.length} 个字段，只匹配这些字段`);
+console.log(`📌 当前配置了 ${currentJSConfig.columnList.length} 个字段`);
+console.log('📌 匹配规则：只替换prop，保留JS原有的label和所有额外配置');
