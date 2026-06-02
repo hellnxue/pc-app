@@ -226,6 +226,23 @@
             background: #fff3cd;
             color: #856404;
         }
+
+        .unmatched-panel {
+            background: #fff3e0;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #ffd699;
+        }
+
+        .unmatched-panel h3 {
+            color: #e67e22;
+            margin-bottom: 10px;
+        }
+
+        .unmatched-panel table {
+            background: white;
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" type="module"></script>
 </head>
@@ -266,6 +283,28 @@
                 <div style="margin-top: 20px;">
                     <button class="btn" onclick="applyMapping()">✅ 应用映射并生成代码</button>
                     <button class="btn btn-secondary" onclick="autoMatch()">🔄 重新智能匹配</button>
+                </div>
+            </div>
+
+            <div class="unmatched-panel" id="unmatchedPanel" style="display: none; margin-top: 20px;">
+                <h3>📌 Excel中未匹配的字段（共 <span id="unmatchedCount">0</span> 个）</h3>
+                <p style="font-size: 12px; color: #666; margin-bottom: 10px;">这些字段在您的JS配置中没有找到匹配，如需使用请手动添加到columnList中</p>
+                <div style="overflow-x: auto;">
+                    <table class="mapping-table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>字段名</th>
+                                <th>字段说明</th>
+                                <th>字段类型</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unmatchedFieldsBody"></tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-secondary" onclick="copyUnmatchedFields()" style="font-size: 12px; padding: 6px 12px;">📋 复制未匹配字段列表</button>
+                    <button class="btn btn-secondary" onclick="addAllUnmatchedToConfig()" style="font-size: 12px; padding: 6px 12px;">➕ 全部添加到配置</button>
                 </div>
             </div>
 

@@ -40,6 +40,148 @@ fileInput.addEventListener('change', (e) => {
     if (e.target.files[0]) handleFile(e.target.files[0]);
 });
 
+// 获取未匹配的字段
+function getUnmatchedFields() {
+    const matchedFields = new Set();
+    
+    // 收集已匹配的API字段
+    Object.values(currentMapping).forEach(mapping => {
+        if (mapping && mapping.excelField) {
+            matchedFields.add(mapping.excelField);
+        }
+    });
+    
+    // 找出未匹配的字段
+    const unmatched = apiFields.filter(apiField => !matchedFields.has(apiField.name));
+    return unmatched;
+}
+
+// 显示未匹配的字段
+function displayUnmatchedFields() {
+    const unmatched = getUnmatchedFields();
+    const unmatchedCount = unmatched.length;
+    
+    document.getElementById('unmatchedCount').textContent = unmatchedCount;
+    const tbody = document.getElementById('unmatchedFieldsBody');
+    tbody.innerHTML = '';
+    
+    if (unmatchedCount === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #28a745;">🎉 所有API字段都已匹配！</td></tr>';
+        document.getElementById('unmatchedPanel').style.display = 'block';
+        return;
+    }
+    
+    unmatched.forEach(apiField => {
+        const row = tbody.insertRow();
+        row.insertCell(0).innerHTML = `<code>${escapeHtml(apiField.name)}</code>`;
+        row.insertCell(1).innerHTML = escapeHtml(apiField.description || '-');
+        row.insertCell(2).innerHTML = `<span class="similarity-badge">${escapeHtml(apiField.type)}</span>`;
+        
+        // 操作按钮
+        const actionCell = row.insertCell(3);
+        const addBtn = document.createElement('button');
+        addBtn.textContent = '➕ 添加到配置';
+        addBtn.style.cssText = 'padding: 4px 8px; font-size: 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;';
+        addBtn.onclick = () => addFieldToConfig(apiField);
+        actionCell.appendChild(addBtn);
+    });
+    
+    document.getElementById('unmatchedPanel').style.display = 'block';
+}
+
+// 添加单个字段到配置
+function addFieldToConfig(apiField) {
+    // 生成默认配置
+    const newField = {
+        prop: apiField.name,
+        label: apiField.description || apiField.name,
+        width: 120,
+        type: 'input',
+        placeholder: `请输入${apiField.description || apiField.name}`,
+        _fromApi: true,
+        _apiInfo: {
+            fieldType: apiField.type,
+            fieldDescription: apiField.description
+        }
+    };
+    
+    // 添加到当前配置
+    currentJSConfig.columnList.push(newField);
+    
+    // 重新初始化映射
+    initializeMapping();
+    
+    // 显示成功消息
+    showNotification(`✅ 已添加字段: ${apiField.name}`, 'success');
+    
+    // 刷新未匹配列表
+    displayUnmatchedFields();
+}
+
+// 添加所有未匹配字段到配置
+function addAllUnmatchedToConfig() {
+    const unmatched = getUnmatchedFields();
+    
+    if (unmatched.length === 0) {
+        showNotification('没有未匹配的字段', 'info');
+        return;
+    }
+    
+    unmatched.forEach(apiField => {
+        const newField = {
+            prop: apiField.name,
+            label: apiField.description || apiField.name,
+            width: 120,
+            type: 'input',
+            placeholder: `请输入${apiField.description || apiField.name}`,
+            _fromApi: true,
+            _apiInfo: {
+                fieldType: apiField.type,
+                fieldDescription: apiField.description
+            }
+        };
+        currentJSConfig.columnList.push(newField);
+    });
+    
+    // 重新初始化映射
+    initializeMapping();
+    
+    showNotification(`✅ 已添加 ${unmatched.length} 个字段到配置`, 'success');
+    displayUnmatchedFields();
+}
+
+// 复制未匹配字段列表
+function copyUnmatchedFields() {
+    const unmatched = getUnmatchedFields();
+    
+    if (unmatched.length === 0) {
+        showNotification('没有未匹配的字段', 'info');
+        return;
+    }
+    
+    let text = '未匹配的API字段列表:\n\n';
+    text += '字段名\t\t字段说明\t\t字段类型\n';
+    text += '------------------------------------------------\n';
+    
+    unmatched.forEach(field => {
+        text += `${field.name}\t\t${field.description || '-'}\t\t${field.type}\n`;
+    });
+    
+    navigator.clipboard.writeText(text).then(() => {
+        showNotification('✅ 未匹配字段列表已复制', 'success');
+    }).catch(() => {
+        showNotification('❌ 复制失败', 'error');
+    });
+}
+
+
+
+
+
+
+
+
+
 // 处理Excel文件
 function handleFile(file) {
     console.log('========== 开始处理文件 ==========');
@@ -440,6 +582,7 @@ function autoMatch() {
     
     renderMappingTable();
     updateMatchStats();
+    displayUnmatchedFields(); 
 }
 
 // 渲染映射表格
@@ -608,6 +751,7 @@ function updateMatchStats() {
 // 初始化映射
 function initializeMapping() {
     autoMatch();
+    displayUnmatchedFields();  
 }
 
 // 应用映射并生成代码（保留JS原有的label）
