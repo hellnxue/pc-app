@@ -132,12 +132,32 @@
             padding: 12px;
         }
 
+        /* 优化下拉选择框样式 */
         .select-mapping {
             width: 100%;
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 5px;
-            font-size: 14px;
+            font-size: 13px;
+            background: white;
+            cursor: pointer;
+            font-family: monospace;
+        }
+
+        .select-mapping:hover {
+            border-color: #667eea;
+        }
+
+        .select-mapping option {
+            padding: 8px;
+            font-size: 13px;
+            white-space: normal;
+            word-break: break-all;
+        }
+
+        /* 高亮推荐选项 */
+        .select-mapping option[style*="background-color: #e8f5e9"] {
+            background-color: #e8f5e9 !important;
         }
 
         .btn {
@@ -207,7 +227,7 @@
             color: #856404;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" type="module"></script>
 </head>
 <body>
     <div class="container">

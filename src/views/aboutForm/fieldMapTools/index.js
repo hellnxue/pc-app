@@ -1,6 +1,8 @@
-// 默认的JS配置（支持额外字段）
+
 let currentJSConfig = {
     columnList: [
+        { prop: 'applExpl', label: '申请说明1', width: 120, type: 'select', placeholder: '请选择流程类型',falg:true },
+
         { prop: 'processType', label: '流程类型', width: 120, type: 'select', placeholder: '请选择流程类型',falg:true },
         { prop: 'oaProcessNumber', label: 'OA流程单号', width: 150, type: 'input', placeholder: '请输入OA流程单号' },
         { prop: 'futuresFtpCode', label: '期货FTP编码', width: 120, type: 'input', placeholder: '请输入期货FTP编码' },
@@ -40,55 +42,143 @@ fileInput.addEventListener('change', (e) => {
 
 // 处理Excel文件
 function handleFile(file) {
+    console.log('========== 开始处理文件 ==========');
+    console.log('文件名:', file.name);
+    console.log('文件大小:', file.size, 'bytes');
+    console.log('文件类型:', file.type);
+    
     const reader = new FileReader();
     reader.onload = function(e) {
+        console.log('文件读取完成，开始解析Excel...');
+        
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
         
-        if (jsonData.length > 0) {
-            parseAPIDocument(jsonData);
-            displayExcelPreview(jsonData);
-            initializeMapping();
-            document.getElementById('excelPreview').style.display = 'block';
-            document.getElementById('mappingPanel').style.display = 'block';
+        console.log('工作簿信息:', workbook.SheetNames);
+        
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        console.log('第一个Sheet名称:', workbook.SheetNames[0]);
+        
+        // 转换为JSON，保留所有行
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1, defval: '' });
+        
+        console.log('转换后的JSON数据行数:', jsonData.length);
+        console.log('前3行原始数据:');
+        for (let i = 0; i < Math.min(3, jsonData.length); i++) {
+            console.log(`  行${i}:`, jsonData[i]);
         }
+        
+        if (jsonData.length === 0) {
+            console.error('Excel文件没有数据行');
+            showNotification('Excel文件为空，请检查文件内容', 'error');
+            return;
+        }
+        
+        // 检查第一行是否包含applExpl
+        const allText = JSON.stringify(jsonData);
+        console.log('文件中是否包含"applExpl":', allText.includes('applExpl'));
+        
+        parseAPIDocument(jsonData);
+        displayExcelPreview(jsonData);
+        initializeMapping();
+        
+        document.getElementById('excelPreview').style.display = 'block';
+        document.getElementById('mappingPanel').style.display = 'block';
     };
+    
+    reader.onerror = function(e) {
+        console.error('文件读取失败:', e);
+        showNotification('文件读取失败，请重试', 'error');
+    };
+    
     reader.readAsArrayBuffer(file);
     document.getElementById('fileInfo').innerHTML = `<p class="success">✅ 已加载: ${file.name}</p>`;
 }
 
-// 解析API文档格式（字段名、字段说明、字段类型）
+ 
+ // 解析API文档格式（字段名、字段说明、字段类型）- 超级调试版
+ // 解析API文档格式（字段名、字段说明、字段类型）- 超级调试版
 function parseAPIDocument(data) {
     apiFields = [];
     
-    // 跳过表头（如果有的话）
-    let startRow = 0;
-    if (data.length > 0) {
-        const firstRow = data[0];
-        // 检查第一行是否是表头
-        if (firstRow[0] && (firstRow[0].includes('字段') || firstRow[1].includes('说明') || firstRow[2].includes('类型'))) {
-            startRow = 1;
-        }
-    }
+    console.log('========== 开始解析Excel ==========');
+    console.log('总行数:', data.length);
+    console.log('原始数据前5行:', data.slice(0, 5));
     
-    // 解析每一行
-    for (let i = startRow; i < data.length; i++) {
+    for (let i = 0; i < data.length; i++) {
         const row = data[i];
-        if (row && row[0] && row[0].trim()) {
-            apiFields.push({
-                name: String(row[0]).trim(),
-                description: row[1] ? String(row[1]).trim() : '',
-                type: row[2] ? String(row[2]).trim() : 'string'
-            });
+        
+        console.log(`\n--- 处理第 ${i} 行 ---`);
+        console.log('原始行数据:', row);
+        console.log('行类型:', typeof row, '是否为数组:', Array.isArray(row));
+        
+        // 确保row存在
+        if (!row) {
+            console.log(`第 ${i} 行为空，跳过`);
+            continue;
         }
+        
+        // 获取三个列的值
+        let col0 = row[0] !== undefined && row[0] !== null ? String(row[0]) : '';
+        let col1 = row[1] !== undefined && row[1] !== null ? String(row[1]) : '';
+        let col2 = row[2] !== undefined && row[2] !== null ? String(row[2]) : '';
+        
+        console.log(`第1列(字段名): "${col0}"`);
+        console.log(`第2列(说明): "${col1}"`);
+        console.log(`第3列(类型): "${col2}"`);
+        
+        // 去除首尾空格
+        let fieldName = col0.trim();
+        let description = col1.trim();
+        let type = col2.trim();
+        
+        console.log(`去除空格后 - 字段名: "${fieldName}", 说明: "${description}", 类型: "${type}"`);
+        
+        // 如果字段名为空，跳过
+        if (!fieldName) {
+            console.log(`⚠️ 第 ${i} 行字段名为空，跳过`);
+            continue;
+        }
+        
+        // 注释掉自动表头判断，改为手动控制
+        // 如果需要跳过表头，请手动设置以下变量为 true
+        const skipFirstRow = false; // 改为 true 则跳过第一行
+
+        if (skipFirstRow && i === 0) {
+            console.log(`跳过第一行`);
+            continue;
+        }
+        
+        // 如果类型为空，设置为默认值
+        if (!type) {
+            type = 'string';
+            console.log(`类型为空，设置为默认值: string`);
+        }
+        
+        // 添加到结果
+        const field = {
+            name: fieldName,
+            description: description,
+            type: type
+        };
+        
+        apiFields.push(field);
+        console.log(`✅ 成功解析字段:`, field);
     }
     
-    console.log('解析到的API字段：', apiFields);
-    console.log(`共解析到 ${apiFields.length} 个API字段，将只匹配配置的 ${currentJSConfig.columnList.length} 个字段`);
+    console.log('\n========== 解析完成 ==========');
+    console.log(`共解析到 ${apiFields.length} 个字段`);
+    console.log('字段列表:', apiFields.map(f => f.name));
+    
+    if (apiFields.length === 0) {
+        console.error('❌ 未解析到任何字段！请检查：');
+        console.error('1. Excel文件是否包含数据');
+        console.error('2. 第一列是否真的有字段名');
+        console.error('3. 尝试重新保存Excel文件为.xlsx格式');
+    }
+    
+    return apiFields;
 }
-
 // 显示Excel预览
 function displayExcelPreview(data) {
     let html = `
@@ -375,11 +465,12 @@ function renderMappingTable() {
         const extraHtml = extraConfig.length > 0 ? `<div style="font-size: 11px; color: #888; margin-top: 4px;">📎 ${extraConfig.join(', ')}</div>` : '';
         row.insertCell(1).innerHTML = escapeHtml(item.label) + extraHtml;
         
-        // 创建下拉选择框
+        // 创建下拉选择框 - 优化显示
         const selectCell = row.insertCell(2);
         const select = document.createElement('select');
         select.className = 'select-mapping';
         select.setAttribute('data-prop', item.prop);
+        select.style.minWidth = '250px'; // 增加最小宽度以显示更多内容
         select.onchange = function() {
             const selectedField = this.value;
             const fieldInfo = selectedField ? apiFields.find(f => f.name === selectedField) : null;
@@ -399,10 +490,62 @@ function renderMappingTable() {
             updateMatchStats();
         };
         
-        select.appendChild(new Option('-- 不映射 --', ''));
-        apiFields.forEach(apiField => {
-            const option = new Option(`${apiField.name} (${apiField.type})`, apiField.name);
-            if (apiField.name === mapping.excelField) option.selected = true;
+        // 添加默认选项
+        const defaultOption = document.createElement('option');
+        defaultOption.value = '';
+        defaultOption.textContent = '-- 不映射 --';
+        select.appendChild(defaultOption);
+        
+        // 按匹配度排序API字段，让匹配度高的排在前面
+        const sortedApiFields = [...apiFields].sort((a, b) => {
+            // 如果当前字段有匹配的，优先显示
+            if (a.name === mapping.excelField) return -1;
+            if (b.name === mapping.excelField) return 1;
+            
+            // 否则按相似度排序
+            const scoreA = calculateSimilarity(item.prop, a.name);
+            const scoreB = calculateSimilarity(item.prop, b.name);
+            return scoreB - scoreA;
+        });
+        
+        // 添加API字段选项，显示完整信息
+        sortedApiFields.forEach(apiField => {
+            const option = document.createElement('option');
+            option.value = apiField.name;
+            
+            // 构建显示文本：字段名 | 中文说明 | 类型
+            let displayText = apiField.name;
+            if (apiField.description && apiField.description.trim()) {
+                // 限制说明长度，避免下拉框过宽
+                const desc = apiField.description.length > 30 
+                    ? apiField.description.substring(0, 27) + '...' 
+                    : apiField.description;
+                displayText += ` | ${desc}`;
+            }
+            if (apiField.type) {
+                displayText += ` | [${apiField.type}]`;
+            }
+            
+            option.textContent = displayText;
+            
+            // 添加title属性，鼠标悬停时显示完整信息
+            let titleText = `字段名: ${apiField.name}`;
+            if (apiField.description) titleText += `\n说明: ${apiField.description}`;
+            if (apiField.type) titleText += `\n类型: ${apiField.type}`;
+            option.title = titleText;
+            
+            // 如果是当前匹配的字段，添加选中状态
+            if (apiField.name === mapping.excelField) {
+                option.selected = true;
+            }
+            
+            // 计算相似度并添加样式提示（可选）
+            const similarity = calculateSimilarity(item.prop, apiField.name);
+            if (similarity >= 70 && !option.selected) {
+                option.style.backgroundColor = '#e8f5e9';
+                option.style.fontWeight = '500';
+            }
+            
             select.appendChild(option);
         });
         
@@ -653,3 +796,21 @@ console.log('✅ API文档字段映射工具已就绪（保留JS原有label）')
 console.log('📌 请上传格式为 [字段名 | 字段说明 | 字段类型] 的Excel文件');
 console.log(`📌 当前配置了 ${currentJSConfig.columnList.length} 个字段`);
 console.log('📌 匹配规则：只替换prop，保留JS原有的label和所有额外配置');
+
+
+
+
+// 手动测试解析函数
+const testData = [
+    ['applExpl', '申请说明', 'string'],
+    ['processType', '流程的类型1', 'string'],
+    [],
+    ['OANo', 'OA流程单号1', 'string'],
+    [],
+    ['ftpCode', '期货的FTP编码1', 'string'],
+    [],
+    ['id', '主键', 'interger']
+];
+
+console.log('测试数据:', testData);
+parseAPIDocument(testData);
