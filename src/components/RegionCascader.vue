@@ -1,5 +1,5 @@
 <template>
-  <span>
+  <div class="region-cascader" :class="[isInlineForm ? 'inline-form' : 'block-form']">
     <el-form-item label="省份">
       <el-select 
         v-model="provinceSelect" 
@@ -7,7 +7,6 @@
         clearable 
         :multiple="multiple"
         :collapse-tags="multiple"
-        style="width: 160px;" 
         @change="onProvinceChange"
       >
         <el-option 
@@ -25,7 +24,6 @@
         clearable 
         :multiple="multiple"
         :collapse-tags="multiple"
-        style="width: 160px;" 
         :disabled="!internal.province.length" 
         @change="onCityChange"
       >
@@ -44,7 +42,6 @@
         clearable 
         :multiple="multiple"
         :collapse-tags="multiple"
-        style="width: 160px;" 
         :disabled="!internal.city.length" 
         @change="emitChange"
       >
@@ -56,7 +53,7 @@
         />
       </el-select>
     </el-form-item>
-  </span>
+  </div>
 </template>
 
 <script>
@@ -73,6 +70,10 @@ export default {
       default: true
     },
     isShowDistrict: {
+      type: Boolean,
+      default: true
+    },
+    isInlineForm: {
       type: Boolean,
       default: true
     }
@@ -300,3 +301,28 @@ export default {
   }
 }
 </script>
+
+<style lang="scss" scoped>
+
+.region-cascader{
+
+  &.inline-form {
+    display: inline-block;
+  
+  }
+  &.block-form {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+  }
+  &.block-form ::v-deep .el-form-item {
+    flex: 1;
+    min-width: 0;
+    margin-right: 0;
+  }
+  &.block-form ::v-deep .el-select {
+    width: 100%;
+  }
+}
+
+</style>
